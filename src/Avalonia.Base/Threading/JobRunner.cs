@@ -10,7 +10,7 @@ namespace Avalonia.Threading
     /// <summary>
     /// A main loop in a <see cref="Dispatcher"/>.
     /// </summary>
-    internal class JobRunner
+    public class JobRunner
     {
         private IPlatformThreadingInterface? _platform;
 
@@ -21,6 +21,8 @@ namespace Avalonia.Threading
         {
             _platform = platform;
         }
+
+        public IJobTelemetryRecipient? JobTelemetryRecipient { get; set; }
 
         /// <summary>
         /// Runs continuations pushed on the loop.
@@ -33,9 +35,13 @@ namespace Avalonia.Threading
             {
                 var job = GetNextJob(minimumPriority);
                 if (job == null)
+                {
                     return;
+                }
 
+                JobTelemetryRecipient?.OnFrameStart();
                 job.Run();
+                JobTelemetryRecipient?.OnFrameEnd(job.Priority);
             }
         }
 
@@ -104,8 +110,11 @@ namespace Avalonia.Threading
                 needWake = queue.Count == 0;
                 queue.Enqueue(job);
             }
+
             if (needWake)
+            {
                 _platform?.Signal(job.Priority);
+            }
         }
 
         private IJob? GetNextJob(DispatcherPriority minimumPriority)
@@ -119,6 +128,7 @@ namespace Avalonia.Threading
                         return q.Dequeue();
                 }
             }
+
             return null;
         }
 
@@ -184,7 +194,7 @@ namespace Avalonia.Threading
             /// The task.
             /// </summary>
             public Task? Task => _taskCompletionSource?.Task;
-            
+
             /// <inheritdoc/>
             void IJob.Run()
             {
@@ -193,6 +203,7 @@ namespace Avalonia.Threading
                     _action();
                     return;
                 }
+
                 try
                 {
                     _action();
@@ -221,7 +232,6 @@ namespace Avalonia.Threading
             /// <param name="parameter">The parameter of method to call.</param>
             /// <param name="priority">The job priority.</param>
             /// <param name="throwOnUiThread">Do not wrap exception in TaskCompletionSource</param>
-
             public JobWithArg(SendOrPostCallback action, object? parameter, DispatcherPriority priority, bool throwOnUiThread)
             {
                 _action = action;
@@ -241,6 +251,7 @@ namespace Avalonia.Threading
                     _action(_parameter);
                     return;
                 }
+
                 try
                 {
                     _action(_parameter);

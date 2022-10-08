@@ -14,7 +14,6 @@ namespace Avalonia.Threading
     /// </remarks>
     public class Dispatcher : IDispatcher
     {
-        private readonly JobRunner _jobRunner;
         private IPlatformThreadingInterface? _platform;
 
         public static Dispatcher UIThread { get; } =
@@ -23,13 +22,15 @@ namespace Avalonia.Threading
         public Dispatcher(IPlatformThreadingInterface? platform)
         {
             _platform = platform;
-            _jobRunner = new JobRunner(platform);
+            JobRunner = new JobRunner(platform);
 
             if (_platform != null)
             {
-                _platform.Signaled += _jobRunner.RunJobs;
+                _platform.Signaled += JobRunner.RunJobs;
             }
         }
+
+        public JobRunner JobRunner { get; }
 
         /// <summary>
         /// Checks that the current thread is the UI thread.
@@ -66,62 +67,62 @@ namespace Avalonia.Threading
         /// </summary>
         public void RunJobs()
         {
-            _jobRunner.RunJobs(null);
+            JobRunner.RunJobs(null);
         }
 
         /// <summary>
         /// Use this method to ensure that more prioritized tasks are executed
         /// </summary>
         /// <param name="minimumPriority"></param>
-        public void RunJobs(DispatcherPriority minimumPriority) => _jobRunner.RunJobs(minimumPriority);
-        
+        public void RunJobs(DispatcherPriority minimumPriority) => JobRunner.RunJobs(minimumPriority);
+
         /// <summary>
         /// Use this method to check if there are more prioritized tasks
         /// </summary>
         /// <param name="minimumPriority"></param>
         public bool HasJobsWithPriority(DispatcherPriority minimumPriority) =>
-            _jobRunner.HasJobsWithPriority(minimumPriority);
+            JobRunner.HasJobsWithPriority(minimumPriority);
 
         /// <inheritdoc/>
         public Task InvokeAsync(Action action, DispatcherPriority priority = default)
         {
             _ = action ?? throw new ArgumentNullException(nameof(action));
-            return _jobRunner.InvokeAsync(action, priority);
+            return JobRunner.InvokeAsync(action, priority);
         }
 
         /// <inheritdoc/>
         public Task<TResult> InvokeAsync<TResult>(Func<TResult> function, DispatcherPriority priority = default)
         {
             _ = function ?? throw new ArgumentNullException(nameof(function));
-            return _jobRunner.InvokeAsync(function, priority);
+            return JobRunner.InvokeAsync(function, priority);
         }
 
         /// <inheritdoc/>
         public Task InvokeAsync(Func<Task> function, DispatcherPriority priority = default)
         {
             _ = function ?? throw new ArgumentNullException(nameof(function));
-            return _jobRunner.InvokeAsync(function, priority).Unwrap();
+            return JobRunner.InvokeAsync(function, priority).Unwrap();
         }
 
         /// <inheritdoc/>
         public Task<TResult> InvokeAsync<TResult>(Func<Task<TResult>> function, DispatcherPriority priority = default)
         {
             _ = function ?? throw new ArgumentNullException(nameof(function));
-            return _jobRunner.InvokeAsync(function, priority).Unwrap();
+            return JobRunner.InvokeAsync(function, priority).Unwrap();
         }
 
         /// <inheritdoc/>
         public void Post(Action action, DispatcherPriority priority = default)
         {
             _ = action ?? throw new ArgumentNullException(nameof(action));
-            _jobRunner.Post(action, priority);
+            JobRunner.Post(action, priority);
         }
 
         /// <inheritdoc/>
         public void Post(SendOrPostCallback action, object? arg, DispatcherPriority priority = default)
         {
             _ = action ?? throw new ArgumentNullException(nameof(action));
-            _jobRunner.Post(action, arg, priority);
+            JobRunner.Post(action, arg, priority);
         }
 
         /// <summary>
@@ -134,7 +135,7 @@ namespace Avalonia.Threading
             if (currentPriority == DispatcherPriority.MaxValue)
                 return;
             currentPriority += 1;
-            _jobRunner.RunJobs(currentPriority);
+            JobRunner.RunJobs(currentPriority);
         }
 
         /// <summary>
@@ -144,15 +145,15 @@ namespace Avalonia.Threading
         {
             if (_platform != null)
             {
-                _platform.Signaled -= _jobRunner.RunJobs;
+                _platform.Signaled -= JobRunner.RunJobs;
             }
 
             _platform = AvaloniaLocator.Current.GetService<IPlatformThreadingInterface>();
-            _jobRunner.UpdateServices();
+            JobRunner.UpdateServices();
 
             if (_platform != null)
             {
-                _platform.Signaled += _jobRunner.RunJobs;
+                _platform.Signaled += JobRunner.RunJobs;
             }
         }
     }
